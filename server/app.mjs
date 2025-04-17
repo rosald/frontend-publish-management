@@ -11,6 +11,8 @@ import koaStatic from 'koa-static';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const PORT = Number(fs.readFileSync(path.resolve(__dirname, 'port'), 'utf8'));
+
 fs.mkdir(path.resolve(__dirname, '..', 'upload_temp'), (e) => {
   // do nothing, ensure the dir exists
   console.log(e);
@@ -18,7 +20,7 @@ fs.mkdir(path.resolve(__dirname, '..', 'upload_temp'), (e) => {
 
 const app = new Koa();
 
-const router = new Router({ prefix: '/api' });
+const apiRouter = new Router({ prefix: '/api' });
 
 const getConfig = () => {
   const t = fs.readFileSync(path.resolve(__dirname, 'site.config.json'), 'utf8');
@@ -29,7 +31,7 @@ const writeConfig = (config) => {
   fs.writeFileSync(path.resolve(__dirname, 'site.config.json'), JSON.stringify(config, null, 2));
 };
 
-router.get('/list', (ctx) => {
+apiRouter.get('/list', (ctx) => {
   ctx.body = {
     code: 0,
     msg: 'success',
@@ -37,7 +39,7 @@ router.get('/list', (ctx) => {
   };
 });
 
-router.post(
+apiRouter.post(
   '/upload',
   koaBody({
     multipart: true,
@@ -69,7 +71,7 @@ router.post(
   }
 );
 
-router.post('/link', koaBody(), (ctx) => {
+apiRouter.post('/link', koaBody(), (ctx) => {
   const { site, targetVersion, linkName } = ctx.request.body;
   if (!/^[a-z]+$/.test(linkName)) {
     ctx.body = {
@@ -98,7 +100,7 @@ router.post('/link', koaBody(), (ctx) => {
   };
 });
 
-router.post('/unlink', koaBody(), (ctx) => {
+apiRouter.post('/unlink', koaBody(), (ctx) => {
   const { site, targetVersion, linkName } = ctx.request.body;
   if (!/^[a-z]+$/.test(linkName)) {
     ctx.body = {
@@ -123,12 +125,26 @@ router.post('/unlink', koaBody(), (ctx) => {
   };
 });
 
-app.use(koaStatic(path.resolve(__dirname, '..', 'client', 'dist')));
+const mainRouter = new Router({ prefix: '/frontend-publish-management' });
 
-app.use(router.routes()).use(router.allowedMethods());
+mainRouter.use(apiRouter.routes(), apiRouter.allowedMethods());
+
+// fixme: do not use (.*?)
+mainRouter.get(
+  '/(.*?)',
+  async (ctx, next) => {
+    const originalPath = ctx.path;
+    ctx.path = originalPath.replace('/frontend-publish-management', '') || '/';
+    await next();
+    ctx.path = originalPath;
+  },
+  koaStatic(path.resolve(__dirname, '..', 'client', 'dist'))
+);
+
+app.use(mainRouter.routes());
 
 const httpServer = http.createServer(app.callback());
 
-httpServer.listen(3000, () => {
-  console.log('listening 3000');
+httpServer.listen(PORT, () => {
+  console.log(`listening ${PORT}`);
 });

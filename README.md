@@ -5,6 +5,7 @@ a simple (but fully functional) frontend publish management system, with followi
 - deploy frontend assets via webpage
 - can specify the release version
 - access different version according to request headers
+- zero break time publishing/switching version
 
 ## why is it
 
@@ -100,7 +101,7 @@ here is several function not implemented
 
 ## nginx.conf example
 
-the default one, just add the "map" and modify the "root"
+the default one in nginx-1.27.5.tar.gz, only add the "map" and modify the "root"
 
 ```conf
 #user  nobody;

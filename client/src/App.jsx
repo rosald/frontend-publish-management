@@ -3,6 +3,8 @@ import { useRequest } from 'ahooks';
 import { Select, Table, Upload, Button, Tag, Modal, Input, message } from 'antd';
 import dayjs from 'dayjs';
 
+const BASE = '/frontend-publish-management/';
+
 function App() {
   const [messageApi, contextHolder] = message.useMessage();
   const [site, setSite] = useState('');
@@ -15,7 +17,7 @@ function App() {
   const [selectValue, setSelectValue] = useState('');
 
   const { run, data, loading } = useRequest(async () => {
-    const res = await fetch('/api/list');
+    const res = await fetch(`${BASE}api/list`);
     const data = await res.json();
     return data.data;
   });
@@ -50,7 +52,7 @@ function App() {
     formData.append('tarball', fileList[0]);
     formData.append('site', site);
     setUploading(true);
-    fetch('/api/upload', {
+    fetch(`${BASE}api/upload`, {
       method: 'POST',
       body: formData,
     })
@@ -68,7 +70,7 @@ function App() {
   };
 
   const handlePublish = (linkName) => {
-    fetch('/api/link', {
+    fetch(`${BASE}api/link`, {
       method: 'POST',
       body: JSON.stringify({
         site,
@@ -86,7 +88,7 @@ function App() {
   };
 
   const handleUnpublish = (linkName) => {
-    fetch('/api/unlink', {
+    fetch(`${BASE}api/unlink`, {
       method: 'POST',
       body: JSON.stringify({
         site,
