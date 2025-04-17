@@ -11,6 +11,11 @@ import koaStatic from 'koa-static';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+fs.mkdir(path.resolve(__dirname, 'upload_temp'), (e) => {
+  // do nothing, ensure the dir exists
+  console.log(e);
+});
+
 const app = new Koa();
 
 const router = new Router({ prefix: '/api' });
