@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import Koa from 'koa';
 import Router from '@koa/router';
 import { koaBody } from 'koa-body';
-import koaStatic from 'koa-static';
+import koaStatic from './koa-static-prefix.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -129,19 +129,20 @@ const mainRouter = new Router({ prefix: '/frontend-publish-management' });
 
 mainRouter.use(apiRouter.routes(), apiRouter.allowedMethods());
 
-// fixme: do not use (.*?)
-mainRouter.get(
-  '/(.*?)',
-  async (ctx, next) => {
-    const originalPath = ctx.path;
-    ctx.path = originalPath.replace('/frontend-publish-management', '') || '/';
-    await next();
-    ctx.path = originalPath;
-  },
-  koaStatic(path.resolve(__dirname, '..', 'client', 'dist'))
-);
+app.use(async (ctx, next) => {
+  console.log(ctx.path);
+  await next();
+});
 
 app.use(mainRouter.routes());
+
+app.use(
+  koaStatic(
+    path.resolve(__dirname, '..', 'client', 'dist'),
+    undefined,
+    '/frontend-publish-management'
+  )
+);
 
 const httpServer = http.createServer(app.callback());
 
