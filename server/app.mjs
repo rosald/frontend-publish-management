@@ -11,7 +11,7 @@ import koaStatic from 'koa-static';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-fs.mkdir(path.resolve(__dirname, 'upload_temp'), (e) => {
+fs.mkdir(path.resolve(__dirname, '..', 'upload_temp'), (e) => {
   // do nothing, ensure the dir exists
   console.log(e);
 });
@@ -43,7 +43,7 @@ router.post(
     multipart: true,
     formidable: {
       maxFileSize: 200 * 1024 * 1024,
-      uploadDir: path.resolve(__dirname, 'upload_temp'),
+      uploadDir: path.resolve(__dirname, '..', 'upload_temp'),
       keepExtensions: true,
     },
   }),
