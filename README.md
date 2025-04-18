@@ -21,7 +21,7 @@ another is that when we want to test something, there is one version, especially
 
 ## how to use
 
-1. copy site.config.template.json to site.config.json
+1. move ./server/site.db.template.json to ./site.db.json
 
 2. change "sitea" and "sitea.path" as needed ( "sitea" is just a name, in case you have multiple sites. "sitea.path" is where assets will be uploaded, which will also be configured in nginx root )
 
@@ -34,15 +34,17 @@ map $http_x_env_version $asset_version {
 }
 ```
 
-4. modify http-server-location-root for example(/home/ubuntu/sitea is also configured in site.config.json, make sure is exists with correct permission):
+4. modify nginx config, http-server-location-root block, for example:
 
 ```
 root    /home/ubuntu/sitea/$asset_version;
 ```
 
+(/home/ubuntu/sitea is also configured in site.db.json, make sure is exists with correct permission)
+
 5. start/restart nginx, build frontend, start backend server
 
-6. visit http://localhost:3000
+6. visit http://localhost:3000/frontend-publish-management
 
 7. click choose site
 
@@ -98,132 +100,3 @@ here is several function not implemented
 - use database
 - operation lock
 - auto crash restart (maybe pm2 is enough)
-
-## nginx.conf example
-
-the default one in nginx-1.27.5.tar.gz, only add the "map" and modify the "root"
-
-```conf
-#user  nobody;
-worker_processes  1;
-
-#error_log  logs/error.log;
-#error_log  logs/error.log  notice;
-#error_log  logs/error.log  info;
-
-#pid        logs/nginx.pid;
-
-
-events {
-    worker_connections  1024;
-}
-
-
-http {
-    include       mime.types;
-    default_type  application/octet-stream;
-
-    map $http_x_env_version $asset_version {
-        default      "current";
-        "~^\d\d\d$"  $http_x_env_version;
-    }
-
-    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-    #                  '$status $body_bytes_sent "$http_referer" '
-    #                  '"$http_user_agent" "$http_x_forwarded_for"';
-
-    #access_log  logs/access.log  main;
-
-    sendfile        on;
-    #tcp_nopush     on;
-
-    #keepalive_timeout  0;
-    keepalive_timeout  65;
-
-    #gzip  on;
-
-    server {
-        listen       80;
-        server_name  localhost;
-
-        #charset koi8-r;
-
-        #access_log  logs/host.access.log  main;
-
-        location / {
-            root   /home/ubuntu/sitea/$asset_version;
-            index  index.html index.htm;
-        }
-
-        #error_page  404              /404.html;
-
-        # redirect server error pages to the static page /50x.html
-        #
-        error_page   500 502 503 504  /50x.html;
-        location = /50x.html {
-            root   html;
-        }
-
-        # proxy the PHP scripts to Apache listening on 127.0.0.1:80
-        #
-        #location ~ \.php$ {
-        #    proxy_pass   http://127.0.0.1;
-        #}
-
-        # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
-        #
-        #location ~ \.php$ {
-        #    root           html;
-        #    fastcgi_pass   127.0.0.1:9000;
-        #    fastcgi_index  index.php;
-        #    fastcgi_param  SCRIPT_FILENAME  /scripts$fastcgi_script_name;
-        #    include        fastcgi_params;
-        #}
-
-        # deny access to .htaccess files, if Apache's document root
-        # concurs with nginx's one
-        #
-        #location ~ /\.ht {
-        #    deny  all;
-        #}
-    }
-
-
-    # another virtual host using mix of IP-, name-, and port-based configuration
-    #
-    #server {
-    #    listen       8000;
-    #    listen       somename:8080;
-    #    server_name  somename  alias  another.alias;
-
-    #    location / {
-    #        root   html;
-    #        index  index.html index.htm;
-    #    }
-    #}
-
-
-    # HTTPS server
-    #
-    #server {
-    #    listen       443 ssl;
-    #    server_name  localhost;
-
-    #    ssl_certificate      cert.pem;
-    #    ssl_certificate_key  cert.key;
-
-    #    ssl_session_cache    shared:SSL:1m;
-    #    ssl_session_timeout  5m;
-
-    #    ssl_ciphers  HIGH:!aNULL:!MD5;
-    #    ssl_prefer_server_ciphers  on;
-
-    #    location / {
-    #        root   html;
-    #        index  index.html index.htm;
-    #    }
-    #}
-
-}
-
-```

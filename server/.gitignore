@@ -23,5 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-site.config.json
+site.db.json
 upload_temp/*
+temp/*

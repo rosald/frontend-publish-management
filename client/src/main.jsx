@@ -1,13 +1,18 @@
 import 'modern-normalize';
-import 'antd/dist/antd.css';
-import React from 'react';
-import ReactDOM from 'react-dom';
 
-import App from './App';
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import '@ant-design/v5-patch-for-react-19';
 
-ReactDOM.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-  document.getElementById('root')
+import App from './App.jsx';
+
+const queryClient = new QueryClient();
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
+  </StrictMode>
 );

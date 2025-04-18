@@ -1,25 +1,84 @@
 import { useState } from 'react';
-import { useRequest } from 'ahooks';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Select, Table, Upload, Button, Tag, Modal, Input, message } from 'antd';
 import dayjs from 'dayjs';
 
-const BASE = '/frontend-publish-management/';
+const BASE = '/frontend-publish-management';
 
 function App() {
+  const queryClient = useQueryClient();
   const [messageApi, contextHolder] = message.useMessage();
   const [site, setSite] = useState('');
 
   const [fileList, setFileList] = useState([]);
-  const [uploading, setUploading] = useState(false);
 
   const [operating, setOperating] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [selectValue, setSelectValue] = useState('');
 
-  const { run, data, loading } = useRequest(async () => {
-    const res = await fetch(`${BASE}api/list`);
-    const data = await res.json();
-    return data.data;
+  const { status, data } = useQuery({
+    queryKey: ['list'],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/list`);
+      const data = await res.json();
+      return data.data;
+    },
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (formData) => {
+      await fetch(`${BASE}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+      setFileList([]);
+    },
+    onSuccess: () => {
+      messageApi.success('success');
+      queryClient.invalidateQueries({ queryKey: ['list'] });
+    },
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: async (linkName) => {
+      await fetch(`${BASE}/api/link`, {
+        method: 'POST',
+        body: JSON.stringify({
+          site,
+          targetVersion: operating,
+          linkName,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    },
+    onSuccess: () => {
+      messageApi.success('success');
+      queryClient.invalidateQueries({ queryKey: ['list'] });
+      closeModal();
+    },
+  });
+
+  const unpublishMutation = useMutation({
+    mutationFn: async (linkName) => {
+      await fetch(`${BASE}/api/unlink`, {
+        method: 'POST',
+        body: JSON.stringify({
+          site,
+          targetVersion: operating,
+          linkName,
+        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    },
+    onSuccess: () => {
+      messageApi.success('success');
+      queryClient.invalidateQueries({ queryKey: ['list'] });
+      closeModal();
+    },
   });
 
   const sitesData = data || {};
@@ -51,58 +110,15 @@ function App() {
     const formData = new FormData();
     formData.append('tarball', fileList[0]);
     formData.append('site', site);
-    setUploading(true);
-    fetch(`${BASE}api/upload`, {
-      method: 'POST',
-      body: formData,
-    })
-      .then((res) => res.json())
-      .then(() => {
-        setFileList([]);
-      })
-      .catch(() => {
-        // do nothing
-      })
-      .finally(() => {
-        setUploading(false);
-        run();
-      });
+    uploadMutation.mutate(formData);
   };
 
   const handlePublish = (linkName) => {
-    fetch(`${BASE}api/link`, {
-      method: 'POST',
-      body: JSON.stringify({
-        site,
-        targetVersion: operating,
-        linkName,
-      }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }).then(() => {
-      messageApi.success('success');
-      run();
-      closeModal();
-    });
+    publishMutation.mutate(linkName);
   };
 
   const handleUnpublish = (linkName) => {
-    fetch(`${BASE}api/unlink`, {
-      method: 'POST',
-      body: JSON.stringify({
-        site,
-        targetVersion: operating,
-        linkName,
-      }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    }).then(() => {
-      messageApi.success('success');
-      run();
-      closeModal();
-    });
+    unpublishMutation.mutate(linkName);
   };
 
   const closeModal = () => {
@@ -139,8 +155,12 @@ function App() {
           <Button disabled={!site}>Select File</Button>
         </Upload>
 
-        <Button onClick={handleUpload} disabled={fileList.length === 0} loading={uploading}>
-          {uploading ? 'Uploading' : 'Start Upload'}
+        <Button
+          onClick={handleUpload}
+          disabled={fileList.length === 0}
+          loading={uploadMutation.status === 'pending'}
+        >
+          {uploadMutation.status === 'pending' ? 'Uploading' : 'Start Upload'}
         </Button>
       </div>
 
@@ -210,7 +230,7 @@ function App() {
       </Modal>
 
       <Table
-        loading={loading}
+        loading={status === 'pending'}
         dataSource={tableData}
         columns={[
           { title: 'version', dataIndex: 'version' },
