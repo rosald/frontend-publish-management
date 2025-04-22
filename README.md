@@ -23,7 +23,7 @@ another is that when we want to test something, there is one version, especially
 
 1. move ./server/site.db.template.json to ./site.db.json
 
-2. change "sitea" and "sitea.path" as needed ( "sitea" is just a name, in case you have multiple sites. "sitea.path" is where assets will be uploaded, which will also be configured in nginx root )
+2. change "sitea" value as needed ( "sitea" is just a name, in case you have multiple sites. the value is where assets will be uploaded, which will also be configured in nginx root block)
 
 3. modify nginx config, add map config at top of http block
 
@@ -74,7 +74,28 @@ it receives a tar archive, extract it to the correct place
 
 it makes symlink to user desired target
 
-it save site config in a simple json file
+the site.db.json is the map of site name and site root location
+
+the backend just use data from linux system like mtime and path name
+
+you can modify the backend and add more data in the site.db.json
+
+```json
+{
+  "sitea": {
+    "path": "/home/ubuntu/sitea",
+    "nextVersion": "002",
+    "versions": {
+      "001": 1744768068231
+    },
+    "links": {
+      "current": "001"
+    }
+  }
+}
+```
+
+or you can use a database for fully function
 
 ### frontend
 

@@ -1,8 +1,3 @@
 {
-  "sitea": {
-    "path": "/home/ubuntu/sitea",
-    "nextVersion": "001",
-    "versions": {},
-    "links": {}
-  }
+  "sitea": "/home/ubuntu/sitea"
 }

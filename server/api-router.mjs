@@ -22,17 +22,79 @@ const getConfig = () => {
   const config = JSON.parse(t);
   return config;
 };
-const writeConfig = (config) => {
-  fs.writeFileSync(SITE_CONFIG, JSON.stringify(config, null, 2));
+
+const getDirDirs = (dir) => {
+  const dirList = fs.readdirSync(dir);
+  const dirs = [];
+  for (const d of dirList) {
+    const fullPath = path.resolve(dir, d);
+    const stat = fs.lstatSync(fullPath);
+    if (!stat.isSymbolicLink() && stat.isDirectory()) {
+      dirs.push(d);
+    }
+  }
+  return dirs;
+};
+const getDirLinks = (dir) => {
+  const dirList = fs.readdirSync(dir);
+  const dirs = [];
+  for (const d of dirList) {
+    const fullPath = path.resolve(dir, d);
+    const stat = fs.lstatSync(fullPath);
+    if (stat.isSymbolicLink() && stat.isDirectory()) {
+      dirs.push(d);
+    }
+  }
+  return dirs;
 };
 
 const apiRouter = new Router({ prefix: '/api' });
 
-apiRouter.get('/list', (ctx) => {
+apiRouter.post('/listsite', koaBody(), (ctx) => {
+  const config = getConfig();
+
   ctx.body = {
     code: 0,
     msg: 'success',
-    data: getConfig(),
+    data: Object.keys(config),
+  };
+});
+
+apiRouter.post('/siteinfo', koaBody(), (ctx) => {
+  const { site } = ctx.request.body;
+  const config = getConfig();
+  const targetPath = config[site];
+
+  if (!targetPath) {
+    ctx.body = {
+      code: 1,
+      msg: 'site not found',
+    };
+    ctx.status = 400;
+    return;
+  }
+
+  const dir = fs.readdirSync(targetPath);
+  const versions = {};
+  const links = {};
+  for (const d of dir) {
+    const fullPath = path.resolve(targetPath, d);
+    const stat = fs.lstatSync(fullPath);
+    if (stat.isSymbolicLink()) {
+      const target = fs.readlinkSync(fullPath);
+      links[d] = target;
+    } else if (stat.isDirectory()) {
+      versions[d] = stat.mtime;
+    }
+  }
+
+  ctx.body = {
+    code: 0,
+    msg: 'success',
+    data: {
+      versions,
+      links,
+    },
   };
 });
 
@@ -49,18 +111,27 @@ apiRouter.post(
   (ctx) => {
     const { site } = ctx.request.body;
     const config = getConfig();
-    const targetPath = config[site].path;
+    const targetPath = config[site];
+
+    if (!targetPath) {
+      ctx.body = {
+        code: 1,
+        msg: 'site not found',
+      };
+      ctx.status = 400;
+      return;
+    }
 
     const uploadFilePath = ctx.request.files.tarball.filepath;
-    const targetVersionPath = path.resolve(targetPath, config[site].nextVersion);
+
+    const currentDirs = getDirDirs(targetPath);
+    const currentMax = Math.max(...currentDirs.map((x) => Number(x)), 0);
+    const nextVersion = String(currentMax + 1).padStart(3, '0');
+    const targetVersionPath = path.resolve(targetPath, nextVersion);
+
     spawnSync('mkdir', ['-p', targetVersionPath]);
     spawnSync('tar', ['-xvf', uploadFilePath, '-C', targetVersionPath]);
 
-    config[site].versions[config[site].nextVersion] = Date.now();
-    const nextVersion = Number(config[site].nextVersion) + 1;
-    config[site].nextVersion = String(nextVersion).padStart(3, '0');
-
-    writeConfig(config);
     ctx.body = {
       code: 0,
       msg: 'success',
@@ -79,17 +150,24 @@ apiRouter.post('/link', koaBody(), (ctx) => {
     return;
   }
   const config = getConfig();
-  const targetPath = config[site].path;
+  const targetPath = config[site];
 
+  if (!targetPath) {
+    ctx.body = {
+      code: 1,
+      msg: 'site not found',
+    };
+    ctx.status = 400;
+    return;
+  }
+
+  // target can be relative or absolute, here use relative
   const targetVersionPath = path.resolve(targetPath, targetVersion);
   const linkNamePath = path.resolve(targetPath, linkName);
   const linkNamePathTmp = path.resolve(targetPath, linkName + '.tmp');
 
-  spawnSync('ln', ['-sf', targetVersionPath, linkNamePathTmp]);
+  spawnSync('ln', ['-sf', targetVersion, linkNamePathTmp]);
   spawnSync('mv', ['-fT', linkNamePathTmp, linkNamePath]);
-
-  config[site].links[linkName] = targetVersion;
-  writeConfig(config);
 
   ctx.body = {
     code: 0,
@@ -107,14 +185,20 @@ apiRouter.post('/unlink', koaBody(), (ctx) => {
     return;
   }
   const config = getConfig();
-  const targetPath = config[site].path;
+  const targetPath = config[site];
+
+  if (!targetPath) {
+    ctx.body = {
+      code: 1,
+      msg: 'site not found',
+    };
+    ctx.status = 400;
+    return;
+  }
 
   const linkNamePath = path.resolve(targetPath, linkName);
 
   spawnSync('unlink', [linkNamePath]);
-
-  config[site].links[linkName] = undefined;
-  writeConfig(config);
 
   ctx.body = {
     code: 0,
