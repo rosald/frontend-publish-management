@@ -1,4 +1,4 @@
-// it's koa-static, remove debug, add prefix support
+// it's koa-static, remove debug, add prefix and replacement support
 
 /**
  * Module dependencies.
@@ -23,7 +23,7 @@ module.exports = serve;
  * @api public
  */
 
-function serve(root, opts, prefix) {
+function serve(root, opts, prefix = '', replacement = '') {
   opts = Object.assign({}, opts);
 
   assert(root, 'root directory is required to serve files');
@@ -39,7 +39,7 @@ function serve(root, opts, prefix) {
         return;
       }
 
-      const sendPath = ctx.path.replace(prefix, '') || '/';
+      const sendPath = ctx.path.replace(prefix, replacement) || '/';
 
       let done = false;
 
@@ -66,7 +66,7 @@ function serve(root, opts, prefix) {
       return;
     }
 
-    const sendPath = ctx.path.replace(prefix, '') || '/';
+    const sendPath = ctx.path.replace(prefix, replacement) || '/';
 
     if (ctx.method !== 'HEAD' && ctx.method !== 'GET') return;
     // response is already handled
