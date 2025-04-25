@@ -166,7 +166,7 @@ apiRouter.post('/link', koaBody(), (ctx) => {
   const linkNamePath = path.resolve(targetPath, linkName);
   const linkNamePathTmp = path.resolve(targetPath, linkName + '.tmp');
 
-  spawnSync('ln', ['-sf', targetVersion, linkNamePathTmp]);
+  spawnSync('ln', ['-snf', targetVersion, linkNamePathTmp]);
   spawnSync('mv', ['-fT', linkNamePathTmp, linkNamePath]);
 
   ctx.body = {
