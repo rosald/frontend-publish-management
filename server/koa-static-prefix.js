@@ -1,7 +1,9 @@
-// it's koa-static, remove debug, add prefix and replacement and header-env support
-// when passing header-env, the root should be the outer path, the middleware will
-// add the assetName dir, according to the header-env value
-// its simple nginx root/alias/http header implementation
+// it's koa-static, remove debug package, add third option param with prefix and replacement support
+// (simple nginx root/alias implementation)
+//
+// also add version-header support(to simulate nginx map http_header)
+// when passing "headerKey", the "root" should be the outer path level, this middleware will
+// add the version dir, according to the version-header value
 
 /**
  * Module dependencies.
@@ -26,15 +28,15 @@ module.exports = serve;
  * @api public
  */
 
-function serve(root, opts, extraOptions /* prefix = '', replacement = '' */) {
+function serve(root, opts, extraOptions) {
   opts = Object.assign({}, opts);
 
   extraOptions = Object.assign({}, extraOptions);
   const prefix = extraOptions.prefix || '';
   const replacement = extraOptions.replacement || '';
-  const headerName = extraOptions.headerName || '';
-  const currentName = extraOptions.currentName || 'current';
-  // TODO: header value verifying
+  const headerKey = extraOptions.headerKey || '';
+  const currentVersion = extraOptions.currentVersion || 'current';
+  const headerValueReg = extraOptions.headerValueReg || null;
 
   assert(root, 'root directory is required to serve files');
 
@@ -49,9 +51,8 @@ function serve(root, opts, extraOptions /* prefix = '', replacement = '' */) {
         return;
       }
 
-      if (headerName) {
-        const assetDirName = ctx.request.header[headerName.toLowerCase()] || currentName;
-        opts.root = resolve(opts.root, assetDirName);
+      if (headerKey) {
+        opts.root = resolve(opts.root, calcDir(ctx, headerKey, currentVersion, headerValueReg));
       }
 
       const sendPath = ctx.path.replace(prefix, replacement) || '/';
@@ -81,6 +82,10 @@ function serve(root, opts, extraOptions /* prefix = '', replacement = '' */) {
       return;
     }
 
+    if (headerKey) {
+      opts.root = resolve(opts.root, calcDir(ctx, headerKey, currentVersion, headerValueReg));
+    }
+
     const sendPath = ctx.path.replace(prefix, replacement) || '/';
 
     if (ctx.method !== 'HEAD' && ctx.method !== 'GET') return;
@@ -95,4 +100,18 @@ function serve(root, opts, extraOptions /* prefix = '', replacement = '' */) {
       }
     }
   };
+}
+
+function calcDir(ctx, headerKey, currentVersion, headerValueReg) {
+  const assetDir = ctx.request.header[headerKey.toLowerCase()];
+
+  if (!assetDir) {
+    return currentVersion;
+  }
+
+  if (headerValueReg && !headerValueReg.test(assetDir)) {
+    return currentVersion;
+  }
+
+  return assetDir;
 }
