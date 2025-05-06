@@ -1,4 +1,7 @@
-// it's koa-static, remove debug, add prefix and replacement support
+// it's koa-static, remove debug, add prefix and replacement and header-env support
+// when passing header-env, the root should be the outer path, the middleware will
+// add the assetName dir, according to the header-env value
+// its simple nginx root/alias/http header implementation
 
 /**
  * Module dependencies.
@@ -23,8 +26,15 @@ module.exports = serve;
  * @api public
  */
 
-function serve(root, opts, prefix = '', replacement = '') {
+function serve(root, opts, extraOptions /* prefix = '', replacement = '' */) {
   opts = Object.assign({}, opts);
+
+  extraOptions = Object.assign({}, extraOptions);
+  const prefix = extraOptions.prefix || '';
+  const replacement = extraOptions.replacement || '';
+  const headerName = extraOptions.headerName || '';
+  const currentName = extraOptions.currentName || 'current';
+  // TODO: header value verifying
 
   assert(root, 'root directory is required to serve files');
 
@@ -37,6 +47,11 @@ function serve(root, opts, prefix = '', replacement = '') {
       if (prefix && !ctx.path.startsWith(prefix)) {
         await next();
         return;
+      }
+
+      if (headerName) {
+        const assetDirName = ctx.request.header[headerName.toLowerCase()] || currentName;
+        opts.root = resolve(opts.root, assetDirName);
       }
 
       const sendPath = ctx.path.replace(prefix, replacement) || '/';

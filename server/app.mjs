@@ -22,11 +22,9 @@ mainRouter.use(apiRouter.routes(), apiRouter.allowedMethods());
 app.use(mainRouter.routes());
 
 app.use(
-  koaStatic(
-    path.resolve(__dirname, '..', 'client', 'dist'),
-    undefined,
-    '/frontend-publish-management'
-  )
+  koaStatic(path.resolve(__dirname, '..', 'client', 'dist'), undefined, {
+    prefix: '/frontend-publish-management',
+  })
 );
 
 const httpServer = http.createServer(app.callback());
