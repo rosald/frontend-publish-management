@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import Koa from 'koa';
 import Router from '@koa/router';
 
-import koaStatic from './koa-static-prefix.js';
+import koaStatic from './koa-static.js';
 import { apiRouter } from './api-router.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -26,6 +26,14 @@ app.use(
     prefix: '/frontend-publish-management',
   })
 );
+
+// an example of serving assets like nginx do
+/* app.use(
+  koaStatic('/home/ubuntu/sitea', undefined, {
+    headerKey: 'x-env-version',
+    headerValueReg: /^[a-z]+$/,
+  })
+); */
 
 const httpServer = http.createServer(app.callback());
 

@@ -52,7 +52,7 @@ function serve(root, opts, extraOptions) {
       }
 
       if (headerKey) {
-        opts.root = resolve(opts.root, calcDir(ctx, headerKey, currentVersion, headerValueReg));
+        opts.root = resolve(root, calcDir(ctx, headerKey, currentVersion, headerValueReg));
       }
 
       const sendPath = ctx.path.replace(prefix, replacement) || '/';
@@ -83,7 +83,7 @@ function serve(root, opts, extraOptions) {
     }
 
     if (headerKey) {
-      opts.root = resolve(opts.root, calcDir(ctx, headerKey, currentVersion, headerValueReg));
+      opts.root = resolve(root, calcDir(ctx, headerKey, currentVersion, headerValueReg));
     }
 
     const sendPath = ctx.path.replace(prefix, replacement) || '/';

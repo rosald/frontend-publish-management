@@ -30,7 +30,7 @@ another is that when we want to test something, there is one version, especially
 ```conf
 map $http_x_env_version $asset_version {
     default      "current";
-    "~^\d\d\d$"  $http_x_env_version;
+    "~^[a-z]+$"  $http_x_env_version;
 }
 ```
 
