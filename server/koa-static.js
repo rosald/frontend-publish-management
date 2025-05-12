@@ -5,6 +5,11 @@
 // when passing "headerKey", the "root" should be the outer path level, this middleware will
 // add the version dir, according to the version-header value
 
+// also add fallback support(to simulate nginx try_files)
+// when passing "fallback", will search for "fallback" when 404, if 404 again, run next
+// eg. fallback=/index.html, will search /index.html
+// if replacement !== '', fallback should include replacement. eg. /thereplacement/index.html
+
 /**
  * Module dependencies.
  */
@@ -37,6 +42,7 @@ function serve(root, opts, extraOptions) {
   const headerKey = extraOptions.headerKey || '';
   const currentVersion = extraOptions.currentVersion || 'current';
   const headerValueReg = extraOptions.headerValueReg || null;
+  const fallback = extraOptions.fallback || '';
 
   assert(root, 'root directory is required to serve files');
 
@@ -65,6 +71,14 @@ function serve(root, opts, extraOptions) {
         } catch (err) {
           if (err.status !== 404) {
             throw err;
+          } else if (fallback) {
+            try {
+              done = await send(ctx, fallback, opts);
+            } catch (fberr) {
+              if (fberr.status !== 404) {
+                throw fberr;
+              }
+            }
           }
         }
       }
@@ -97,6 +111,14 @@ function serve(root, opts, extraOptions) {
     } catch (err) {
       if (err.status !== 404) {
         throw err;
+      } else if (fallback) {
+        try {
+          await send(ctx, fallback, opts);
+        } catch (fberr) {
+          if (fberr.status !== 404) {
+            throw fberr;
+          }
+        }
       }
     }
   };

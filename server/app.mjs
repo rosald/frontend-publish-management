@@ -32,6 +32,9 @@ app.use(
   koaStatic('/home/ubuntu/sitea', undefined, {
     headerKey: 'x-env-version',
     headerValueReg: /^[a-z]+$/,
+    prefix: '/someprefix',
+    replacement: '', // if set to '/thereplacement'
+    fallback: '/index.html', // the fallback should set to /thereplacement/index.html
   })
 ); */
 
