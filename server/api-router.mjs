@@ -23,25 +23,13 @@ const getConfig = () => {
   return config;
 };
 
-const getDirDirs = (dir) => {
+const getDirectoriesInSiteDistDir = (dir) => {
   const dirList = fs.readdirSync(dir);
   const dirs = [];
   for (const d of dirList) {
     const fullPath = path.resolve(dir, d);
     const stat = fs.lstatSync(fullPath);
     if (!stat.isSymbolicLink() && stat.isDirectory()) {
-      dirs.push(d);
-    }
-  }
-  return dirs;
-};
-const getDirLinks = (dir) => {
-  const dirList = fs.readdirSync(dir);
-  const dirs = [];
-  for (const d of dirList) {
-    const fullPath = path.resolve(dir, d);
-    const stat = fs.lstatSync(fullPath);
-    if (stat.isSymbolicLink() && stat.isDirectory()) {
       dirs.push(d);
     }
   }
@@ -124,7 +112,7 @@ apiRouter.post(
 
     const uploadFilePath = ctx.request.files.tarball.filepath;
 
-    const currentDirs = getDirDirs(targetPath);
+    const currentDirs = getDirectoriesInSiteDistDir(targetPath);
     const currentMax = Math.max(...currentDirs.map((x) => Number(x)), 0);
     const nextVersion = String(currentMax + 1).padStart(3, '0');
     const targetVersionPath = path.resolve(targetPath, nextVersion);

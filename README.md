@@ -28,7 +28,7 @@ another is that when we want to test something, there is one version, especially
 3. modify nginx config, add map config at top of http block
 
 ```conf
-map $http_x_env_version $asset_version {
+map $http_x_env_version $asset_env_version {
     default      "current";
     "~^[a-z]+$"  $http_x_env_version;
 }
@@ -37,7 +37,7 @@ map $http_x_env_version $asset_version {
 4. modify nginx config, http-server-location-root block, for example:
 
 ```
-root    /home/ubuntu/sitea/$asset_version;
+root    /home/ubuntu/sitea/$asset_env_version;
 ```
 
 (/home/ubuntu/sitea is also configured in site.db.json, make sure is exists with correct permission)
