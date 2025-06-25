@@ -27,7 +27,7 @@ app.use(
   })
 );
 
-// an example of serving assets like nginx do
+// an example of serving assets like nginx do. use this if you do not have nginx installed
 /* app.use(
   koaStatic('/home/ubuntu/sitea', undefined, {
     headerKey: 'x-env-version',
