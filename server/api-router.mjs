@@ -14,13 +14,33 @@ const UPLOAD_TEMP = path.resolve(__dirname, '..', 'temp');
 
 fs.mkdir(UPLOAD_TEMP, (e) => {
   // do nothing, ensure the dir exists
-  console.log(e);
+  console.log(UPLOAD_TEMP + ' already exists');
 });
+
+// TODO: place the func to api
+const createWarningTxtFile = (targetPath) => {
+  const text =
+    '!!! IMPORTANT WARNING !!!\n\n' +
+    'This "dists" directory is AUTOMATICALLY MANAGED by the frontend-publish-management system.\n\n' +
+    '■ DO NOT modify, delete, or add ANY files/folders\n' +
+    '■ DO NOT alter existing content\n' +
+    '■ Manual changes will be OVERWRITTEN by the system\n' +
+    '■ Unauthorized modifications may cause SYSTEM FAILURES\n\n' +
+    'Contact [Your Team Name/Email] for assistance.\n';
+  const fileName = '00_WARNING_DO_NOT_MODIFY.txt';
+  fs.writeFile(path.resolve(targetPath, fileName), text, 'utf8', (e) => {
+    // do nothing
+  });
+};
 
 const getConfig = () => {
   const t = fs.readFileSync(SITE_CONFIG, 'utf8');
   const config = JSON.parse(t);
   return config;
+};
+
+const writeConfig = (t) => {
+  fs.writeFileSync(SITE_CONFIG, t, 'utf8');
 };
 
 const getDirectoriesInSiteDistDir = (dir) => {
@@ -37,6 +57,33 @@ const getDirectoriesInSiteDistDir = (dir) => {
 };
 
 const apiRouter = new Router({ prefix: '/api' });
+
+apiRouter.post('/inspectsitedb', koaBody(), (ctx) => {
+  const config = getConfig();
+  ctx.body = {
+    code: 0,
+    msg: 'success',
+    data: config,
+  };
+});
+
+apiRouter.post('/writesitedb', koaBody(), (ctx) => {
+  const { db } = ctx.request.body;
+  try {
+    JSON.parse(db);
+    writeConfig(db);
+    ctx.body = {
+      code: 0,
+      msg: 'success',
+    };
+  } catch (e) {
+    ctx.status = 400;
+    ctx.body = {
+      code: 1,
+      msg: 'invalid json',
+    };
+  }
+});
 
 apiRouter.post('/listsite', koaBody(), (ctx) => {
   const config = getConfig();
@@ -63,9 +110,14 @@ apiRouter.post('/siteinfo', koaBody(), (ctx) => {
   }
 
   const dir = fs.readdirSync(targetPath);
+  const dirSorted = dir.toSorted((a, b) => {
+    if (a < b) return 1;
+    if (a > b) return -1;
+    return 0;
+  });
   const versions = {};
   const links = {};
-  for (const d of dir) {
+  for (const d of dirSorted) {
     const fullPath = path.resolve(targetPath, d);
     const stat = fs.lstatSync(fullPath);
     if (stat.isSymbolicLink()) {
@@ -196,23 +248,47 @@ apiRouter.post('/unlink', koaBody(), (ctx) => {
 
 apiRouter.post('/inspect', koaBody(), (ctx) => {
   const { site, version } = ctx.request.body;
-  if (!/^[a-z]+$/.test(version)) {
+  if (!/^\d{3}$/.test(version)) {
     ctx.body = {
       code: 1,
-      msg: 'must a-z',
+      msg: 'must 0-9',
     };
     return;
   }
   const config = getConfig();
-  const targetPath = config[site].path;
+  const targetPath = config[site];
 
   const versionPath = path.resolve(targetPath, version);
 
-  // todo: inspect the dir using fast-glob
+  const list = [];
+  const result = [];
+
+  const data = fs.readdirSync(versionPath);
+  for (const d of data) {
+    result.push(d);
+  }
+  const dirs = getDirectoriesInSiteDistDir(versionPath);
+  for (const d of dirs) {
+    list.push(d);
+  }
+
+  while (list.length > 0) {
+    const target = list.shift();
+
+    const data = fs.readdirSync(versionPath + '/' + target);
+    for (const d of data) {
+      result.push(target + '/' + d);
+    }
+    const dirs = getDirectoriesInSiteDistDir(versionPath + '/' + target);
+    for (const d of dirs) {
+      list.push(target + '/' + d);
+    }
+  }
 
   ctx.body = {
     code: 0,
     msg: 'success',
+    data: result,
   };
 });
 

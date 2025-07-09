@@ -1,9 +1,17 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Select, Table, Upload, Button, Tag, Modal, Input, message } from 'antd';
+import { Select, Table, Upload, Button, Tag, Modal, Drawer, Input, Tooltip, message } from 'antd';
+import {
+  UploadOutlined,
+  RocketOutlined,
+  FileSearchOutlined,
+  QuestionCircleOutlined,
+} from '@ant-design/icons';
 import dayjs from 'dayjs';
 
 import { BASE } from './const.js';
+
+const isValidEnvironment = (env) => /^[a-z]+$/.test(env);
 
 function App(props) {
   const { site } = props;
@@ -15,6 +23,23 @@ function App(props) {
   const [operating, setOperating] = useState('');
   const [inputValue, setInputValue] = useState('');
   const [selectValue, setSelectValue] = useState('');
+
+  const [inspecting, setInspecting] = useState('');
+  const { status: inspectStatus, data: inspectData } = useQuery({
+    queryKey: ['inspectinfo', site, inspecting],
+    queryFn: async () => {
+      const res = await fetch(`${BASE}/api/inspect`, {
+        method: 'POST',
+        body: JSON.stringify({ site, version: inspecting }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const data = await res.json();
+      return data.data;
+    },
+    enabled: !!inspecting,
+  });
 
   const { status, data } = useQuery({
     queryKey: ['siteinfo', site],
@@ -40,7 +65,7 @@ function App(props) {
       setFileList([]);
     },
     onSuccess: () => {
-      messageApi.success('success');
+      messageApi.success('Success');
       queryClient.invalidateQueries({ queryKey: ['siteinfo'] });
     },
   });
@@ -60,7 +85,7 @@ function App(props) {
       });
     },
     onSuccess: () => {
-      messageApi.success('success');
+      messageApi.success('Success');
       queryClient.invalidateQueries({ queryKey: ['siteinfo'] });
       closeModal();
     },
@@ -81,7 +106,7 @@ function App(props) {
       });
     },
     onSuccess: () => {
-      messageApi.success('success');
+      messageApi.success('Success');
       queryClient.invalidateQueries({ queryKey: ['siteinfo'] });
       closeModal();
     },
@@ -118,13 +143,18 @@ function App(props) {
   const closeModal = () => {
     setOperating('');
     setInputValue('');
+    setSelectValue('');
+  };
+
+  const closeInspectModal = () => {
+    setInspecting('');
   };
 
   return (
     <>
       {contextHolder}
 
-      <div style={{ display: 'flex', marginBlock: 16 }}>
+      <div style={{ display: 'flex', marginBlock: '16px', gap: '8px' }}>
         <Upload
           onRemove={() => {
             setFileList([]);
@@ -135,7 +165,9 @@ function App(props) {
           }}
           fileList={fileList}
         >
-          <Button disabled={!site}>Select File</Button>
+          <Button icon={<UploadOutlined />} disabled={!site}>
+            Select File
+          </Button>
         </Upload>
 
         <Button
@@ -143,89 +175,149 @@ function App(props) {
           disabled={fileList.length === 0}
           loading={uploadMutation.status === 'pending'}
         >
-          {uploadMutation.status === 'pending' ? 'Uploading' : 'Start Upload'}
+          {uploadMutation.status === 'pending' ? 'Uploading...' : 'Start Upload'}
         </Button>
       </div>
 
-      <Modal open={!!operating} onCancel={closeModal} onOk={closeModal}>
-        <div>
-          <h3>publish</h3>
+      <Modal
+        title={'Manage Publication: ' + operating}
+        width={820}
+        open={!!operating}
+        onCancel={closeModal}
+        onOk={closeModal}
+        footer={null}
+      >
+        <div style={{ display: 'flex' }}>
+          {/* Publish to Current */}
+          <div style={{ flex: 1, paddingRight: '24px' }}>
+            <h3 style={{ marginBottom: 8 }}>Publish as Default</h3>
+            <p style={{ color: '#666', marginBottom: 16 }}>
+              Sets this version as the default production version.
+            </p>
+            <p style={{ color: '#666', marginBottom: 16 }}>
+              Visitors will see it without any special headers.
+            </p>
 
-          <h5>publish env</h5>
+            <Button
+              type="primary"
+              onClick={() => {
+                handlePublish('current');
+              }}
+            >
+              Set as Default Version
+            </Button>
+          </div>
 
-          <Input
-            placeholder="enter an env to publish"
-            style={{ width: 220 }}
-            value={inputValue}
-            onChange={(e) => {
-              setInputValue(e.target.value);
-            }}
-          />
-          <Button
-            onClick={() => {
-              if (!/^[a-z]+$/.test(inputValue)) {
-                messageApi.error('must a-z');
-                return;
+          {/* Publish to Environment */}
+          <div style={{ flex: 1, borderInline: '1px solid #f0f0f0', padding: '0 24px' }}>
+            <h3 style={{ marginBottom: 8 }}>Publish to Environment</h3>
+            <p style={{ color: '#666', marginBottom: 16 }}>Publish to a preview environment.</p>
+            <p style={{ color: '#666', marginBottom: 16 }}>
+              Viewers must set the header:
+              <code style={{ display: 'block' }}>x-env-version: [environment]</code>
+            </p>
+            <p style={{ color: '#666', marginBottom: 16 }}>
+              Use browser extensions like ModHeader to test.
+            </p>
+
+            <Input
+              placeholder="Enter environment name"
+              style={{ width: '100%', marginBottom: 12 }}
+              value={inputValue}
+              onChange={(e) => {
+                setInputValue(e.target.value);
+              }}
+              suffix={
+                <Tooltip title="Environment names must be lowercase letters only">
+                  <QuestionCircleOutlined style={{ marginLeft: 8, color: '#999' }} />
+                </Tooltip>
               }
-              handlePublish(inputValue);
-            }}
-          >
-            publish
-          </Button>
+            />
 
-          <h5>publish current</h5>
-          <Button
-            type="primary"
-            onClick={() => {
-              handlePublish('current');
-            }}
-          >
-            publish current
-          </Button>
-        </div>
-        <div>
-          <h3>unpublish</h3>
-          <Select
-            placeholder="select an env to unpublish"
-            style={{ width: 220 }}
-            options={tableData
-              .find((x) => x.version === operating)
-              ?.env?.map((x) => {
-                return { label: x, value: x };
-              })}
-            value={selectValue || undefined}
-            onChange={(v) => {
-              setSelectValue(v);
-            }}
-          />
-          <Button
-            onClick={() => {
-              if (!/^[a-z]+$/.test(selectValue)) {
-                messageApi.error('must a-z');
-                return;
-              }
-              handleUnpublish(selectValue);
-            }}
-          >
-            unpublish
-          </Button>
+            <Button
+              type="primary"
+              onClick={() => {
+                if (!isValidEnvironment(inputValue)) {
+                  messageApi.error('Environment name must be lowercase letters only');
+                  return;
+                }
+                handlePublish(inputValue);
+              }}
+            >
+              Publish to Environment
+            </Button>
+          </div>
+
+          {/* Unpublish */}
+          <div style={{ flex: 1, paddingLeft: '24px' }}>
+            <h3 style={{ marginBottom: 8 }}>Unpublish Version</h3>
+            <p style={{ color: '#666', marginBottom: 16 }}>
+              Remove this version from an environment.
+            </p>
+            <p style={{ color: '#666', marginBottom: 16 }}>
+              Select the environment where you want to unpublish:
+            </p>
+
+            <Select
+              placeholder="Select environment"
+              style={{ width: '100%', marginBottom: 12 }}
+              options={tableData
+                .find((x) => x.version === operating)
+                ?.env?.map((x) => {
+                  return { label: x, value: x };
+                })}
+              value={selectValue || undefined}
+              onChange={(v) => {
+                setSelectValue(v);
+              }}
+            />
+            <Button
+              type="primary"
+              danger
+              onClick={() => {
+                if (!selectValue) {
+                  messageApi.error('Please select an environment');
+                  return;
+                }
+                handleUnpublish(selectValue);
+              }}
+            >
+              Unpublish from Environment
+            </Button>
+          </div>
         </div>
       </Modal>
+
+      <Drawer
+        closable
+        title={'Inspect: ' + inspecting}
+        open={!!inspecting}
+        onClose={closeInspectModal}
+        loading={inspectStatus === 'pending'}
+      >
+        <div>
+          {inspectStatus === 'error' && <div>Error loading data</div>}
+          {inspectStatus === 'success' &&
+            inspectData?.map((x) => {
+              return <div key={x}>{x}</div>;
+            })}
+        </div>
+      </Drawer>
 
       <Table
         loading={status === 'pending'}
         dataSource={tableData}
         columns={[
-          { title: 'version', dataIndex: 'version' },
+          { title: 'Version', dataIndex: 'version' },
           {
-            title: 'modify date',
+            title: 'Last Modified',
             dataIndex: 'date',
             render: (col) => {
               return dayjs(col).format('YYYY-MM-DD HH:mm:ss');
             },
           },
           {
-            title: 'env',
+            title: 'Environment',
             dataIndex: 'env',
             render: (col) => (
               <>
@@ -238,17 +330,29 @@ function App(props) {
             ),
           },
           {
-            title: 'operation',
+            title: 'Actions',
             dataIndex: '_op_',
             render: (_col, item) => {
               return (
-                <Button
-                  onClick={() => {
-                    setOperating(item.version);
-                  }}
-                >
-                  publish/unpublish
-                </Button>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <Button
+                    icon={<RocketOutlined />}
+                    onClick={() => {
+                      setOperating(item.version);
+                    }}
+                  >
+                    Publish / Unpublish
+                  </Button>
+
+                  <Button
+                    icon={<FileSearchOutlined />}
+                    onClick={() => {
+                      setInspecting(item.version);
+                    }}
+                  >
+                    Inspect
+                  </Button>
+                </div>
               );
             },
           },
