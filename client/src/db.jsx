@@ -71,17 +71,17 @@ function App() {
           setIsOpen(true);
         }}
       >
-        Edit site db (With caution)
+        Edit Site Db (With caution)
       </Button>
 
       <Modal
-        title="Edit Site Db (Be extremely cautious)"
+        title="Edit Site Db (Be Extremely Cautious)"
         open={!!isOpen}
         onCancel={closeModal}
         onOk={() => {
           updateMutation.mutate(inputValue);
         }}
-        okText="Update Site Db (Be extremely cautious)"
+        okText="Update Site Db (Be Extremely Cautious)"
         width={820}
       >
         {status === 'pending' && <Spin />}

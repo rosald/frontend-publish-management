@@ -1,24 +1,15 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Select, Table, Upload, Button, Tag, Modal, Drawer, Input, Tooltip, message } from 'antd';
-import {
-  UploadOutlined,
-  RocketOutlined,
-  FileSearchOutlined,
-  QuestionCircleOutlined,
-} from '@ant-design/icons';
+import { Select, Table, Button, Tag, Modal, Drawer, Input, Tooltip, message } from 'antd';
+import { RocketOutlined, FileSearchOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
-import { BASE } from './const.js';
-
-const isValidEnvironment = (env) => /^[a-z]+$/.test(env);
+import { BASE, isValidEnvironment } from './const.js';
 
 function App(props) {
   const { site } = props;
   const queryClient = useQueryClient();
   const [messageApi, contextHolder] = message.useMessage();
-
-  const [fileList, setFileList] = useState([]);
 
   const [operating, setOperating] = useState('');
   const [inputValue, setInputValue] = useState('');
@@ -53,20 +44,6 @@ function App(props) {
       });
       const data = await res.json();
       return data.data;
-    },
-  });
-
-  const uploadMutation = useMutation({
-    mutationFn: async (formData) => {
-      await fetch(`${BASE}/api/upload`, {
-        method: 'POST',
-        body: formData,
-      });
-      setFileList([]);
-    },
-    onSuccess: () => {
-      messageApi.success('Success');
-      queryClient.invalidateQueries({ queryKey: ['siteinfo'] });
     },
   });
 
@@ -125,13 +102,6 @@ function App(props) {
     };
   });
 
-  const handleUpload = () => {
-    const formData = new FormData();
-    formData.append('tarball', fileList[0]);
-    formData.append('site', site);
-    uploadMutation.mutate(formData);
-  };
-
   const handlePublish = (linkName) => {
     publishMutation.mutate(linkName);
   };
@@ -153,31 +123,6 @@ function App(props) {
   return (
     <>
       {contextHolder}
-
-      <div style={{ display: 'flex', marginBlock: '16px', gap: '8px' }}>
-        <Upload
-          onRemove={() => {
-            setFileList([]);
-          }}
-          beforeUpload={(file) => {
-            setFileList([file]);
-            return false;
-          }}
-          fileList={fileList}
-        >
-          <Button icon={<UploadOutlined />} disabled={!site}>
-            Select File
-          </Button>
-        </Upload>
-
-        <Button
-          onClick={handleUpload}
-          disabled={fileList.length === 0}
-          loading={uploadMutation.status === 'pending'}
-        >
-          {uploadMutation.status === 'pending' ? 'Uploading...' : 'Start Upload'}
-        </Button>
-      </div>
 
       <Modal
         title={'Manage Publication: ' + operating}
@@ -317,7 +262,14 @@ function App(props) {
             },
           },
           {
-            title: 'Environment',
+            title: (
+              <div>
+                Environment
+                <Tooltip title="'current' is the default version served without headers. Other environments require the x-env-version header">
+                  <QuestionCircleOutlined style={{ marginLeft: 8, color: '#999' }} />
+                </Tooltip>
+              </div>
+            ),
             dataIndex: 'env',
             render: (col) => (
               <>

@@ -1,31 +1,40 @@
-# frontend publish management
+# Frontend Publish Management System
 
-a simple (but fully functional) frontend publish management system, with following feature:
+A simple yet fully functional frontend deployment management system, with the following features:
 
-- deploy frontend assets via webpage
-- can specify the release version
-- access different version according to request headers
-- zero break time publishing/switching version
+- Deploy frontend assets via web interface
+- Specify release versions
+- Access different versions using request headers
+- Zero-downtime version switching
 
-## why is it
+## Motivation
 
-nowadays, we usually deploy frontend assets via cloud service
+While cloud services are commonly used for frontend deployments (especially for SPAs where index.html is served through rendering services and assets are hosted on CDNs), there are scenarios where a single Nginx server suffices for lower-traffic applications.
 
-(in spa pages, we often serve the index html via render service, and the other assets were uploaded to cdn. the whole process may also be done in cloud enviroment, we pull the codebase in the pod, we install dependencies in the pod, we build assets in the pod, we upload to cdn in the pod)
+This solution addresses two key challenges:
 
-but there is still some situations that , we do not have huge amount of users or traffic, one simple nginx running on one simple server is enough
+1. Manual deployment processes are cumbersome
+2. Testing parallel features is difficult when only one version is available (merging all feature branches mixes changes, whereas isolated feature testing is often preferable)
 
-there is sore point. one is that deploy manually is a little trouble
+## Usage Instructions
 
-another is that when we want to test something, there is one version, especially parallel features in development(one solution is merge all feature branch into dev branch , but all the feature are mixed all together, sometimes we just want to test my own feature)
+### 1. Initialize configuration
 
-## how to use
+Rename ./server/site.db.template.json to ./site.db.json
 
-1. move ./server/site.db.template.json to ./site.db.json
+### 2. Configure sites
 
-2. change "sitea" value as needed ( "sitea" is just a name, in case you have multiple sites. the value is where assets will be uploaded, which will also be configured in nginx root block)
+Edit site.db.json to define your deployment targets. This file contains site-name → site-path mappings. The path value should match where assets will be stored and must correspond to your Nginx configuration.
 
-3. modify nginx config, add map config at top of http block
+```json
+{
+  "sitea": "/home/ubuntu/sitea"
+}
+```
+
+### 3. Configure Nginx
+
+Add this map directive to the top of your http block:
 
 ```conf
 map $http_x_env_version $asset_env_version {
@@ -34,90 +43,82 @@ map $http_x_env_version $asset_env_version {
 }
 ```
 
-4. modify nginx config, http-server-location-root block, for example:
+### 4. Set Nginx root path
+
+In your server/location block, configure the root path:
 
 ```
 root    /home/ubuntu/sitea/$asset_env_version;
 ```
 
-(/home/ubuntu/sitea is also configured in site.db.json, make sure is exists with correct permission)
+> Ensure the directory (in this case /home/ubuntu/sitea) exists with correct permissions
 
-5. start/restart nginx, build frontend, start backend server
+### 5. Start services
 
-6. visit http://localhost:3000/frontend-publish-management
-
-7. click choose site
-
-8. select one tar file and upload
-
-9. click publish/unpublish, then click "publish current"
-
-10. visite the site
-
-11. (optional) upload several versions
-
-12. (optional) enter some env(support a-z) to publish a different version. for example , enter "featurea"
-
-13. (optional) visite the site with request header(you can use chrome extension modheader) x-env-version: featurea
-
-14. wow! you see another version
-
-## how it works
-
-it actually just only do one thing: manage the nginx serve dir, so nginx is required(or something simular)
-
-### backend
-
-the backend is a koa application
-
-it receives a tar archive, extract it to the correct place
-
-it makes symlink to user desired target
-
-the site.db.json is the map of site name and site root location
-
-the backend just use data from linux system like mtime and path name
-
-you can modify the backend and add more data in the site.db.json
-
-```json
-{
-  "sitea": {
-    "path": "/home/ubuntu/sitea",
-    "nextVersion": "002",
-    "versions": {
-      "001": 1744768068231
-    },
-    "links": {
-      "current": "001"
-    }
-  }
-}
+```bash
+sudo systemctl restart nginx  # Restart Nginx
+cd client && npm run build # Build frontend
+cd server && npm start # Start backend server
 ```
 
-or you can use a database for fully function
+### 6. Access management UI
 
-### frontend
+Visit http://localhost:3000/frontend-publish-management
 
-the frontend is just a boring react + vite application
+### 7. Deploy assets
 
-it visualize the site config and let user do some management operations
+- Click "Select site to operate..."
+- Select and upload a .tar file
+- Click "Publish/Unpublish", then click "Set as Default Version"
 
-### nginx
+Note : File structure: All files must be at the root of the archive (e.g., avoid having a "dist/" folder inside the archive).
 
-there is only one key point in nginx config
+### 8. Test deployments
 
-it is the "map" directive, maps http header in a variable
+Access your site normally to see the published version
 
-then, use the variable in root directive
+### 9. Environment testing (optional)
 
-## additional notes
+- Upload multiple versions
+- Enter an environment name (e.g., featurea)
+- Visit site with header: x-env-version: featurea
+- Use browser extensions like ModHeader for header injection
 
-here is several function not implemented
+## Architecture Overview
 
-- auth and login
-- error capturing
-- auditing
-- use database
-- operation lock
-- auto crash restart (maybe pm2 is enough)
+### Core Components
+
+#### Backend (Koa Server)
+
+- Receives and extracts .tar archives
+- Manages symlinks for version switching
+- Uses site.db.json for site configuration:
+
+#### Frontend (React + Vite)
+
+- Provides UI for version management
+- Visualizes deployment status and history
+
+#### Nginx
+
+- Uses map to convert headers to directory paths
+- Serves assets from version-specific directories
+
+### Key Mechanism
+
+The system manages directories where Nginx serves content, enabling:
+
+1. Atomic version switches via symlink updates
+2. Header-based version routing (x-env-version)
+3. Parallel version testing without DNS changes
+
+## Limitations
+
+The following features are not implemented:
+
+- Authentication/authorization
+- Error tracking and reporting
+- Operation auditing
+- Database persistence
+- Deployment locking
+- Auto-restart (PM2 recommended)

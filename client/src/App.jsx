@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Select } from 'antd';
 
-import Site from './site.jsx';
-import Db from './db.jsx';
 import { BASE } from './const.js';
+
+const Db = lazy(() => import('./db.jsx'));
+const Upload = lazy(() => import('./upload.jsx'));
+const Site = lazy(() => import('./site.jsx'));
 
 function App() {
   const [site, setSite] = useState('');
@@ -14,7 +16,6 @@ function App() {
     queryFn: async () => {
       const res = await fetch(`${BASE}/api/listsite`, {
         method: 'POST',
-        body: JSON.stringify({}),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -49,11 +50,22 @@ function App() {
           />
         </div>
         <div style={{ marginLeft: '100px' }}>
-          <Db />
+          <Suspense fallback={<div style={{ display: 'inline-block' }}>Loading Db Manager...</div>}>
+            <Db />
+          </Suspense>
         </div>
       </div>
 
-      {site && <Site site={site} />}
+      {site && (
+        <Suspense fallback={<div style={{ padding: '20px' }}>Loading Upload Manager...</div>}>
+          <Upload site={site} />
+        </Suspense>
+      )}
+      {site && (
+        <Suspense fallback={<div style={{ padding: '20px' }}>Loading Site Manager...</div>}>
+          <Site site={site} />
+        </Suspense>
+      )}
       {!site && (
         <div
           style={{ marginTop: '16px', marginLeft: '100px', color: '#8c8c8c', fontStyle: 'italic' }}

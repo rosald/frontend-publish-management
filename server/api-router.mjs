@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import Router from '@koa/router';
 import { koaBody } from 'koa-body';
 
+import { isValidEnvironment } from './utils.mjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SITE_CONFIG = path.resolve(__dirname, '..', 'site.db.json');
@@ -17,7 +19,6 @@ fs.mkdir(UPLOAD_TEMP, (e) => {
   console.log(UPLOAD_TEMP + ' already exists');
 });
 
-// TODO: place the func to api
 const createWarningTxtFile = (targetPath) => {
   const text =
     '!!! IMPORTANT WARNING !!!\n\n' +
@@ -162,6 +163,8 @@ apiRouter.post(
       return;
     }
 
+    createWarningTxtFile(targetPath);
+
     const uploadFilePath = ctx.request.files.tarball.filepath;
 
     const currentDirs = getDirectoriesInSiteDistDir(targetPath);
@@ -181,7 +184,7 @@ apiRouter.post(
 
 apiRouter.post('/link', koaBody(), (ctx) => {
   const { site, targetVersion, linkName } = ctx.request.body;
-  if (!/^[a-z]+$/.test(linkName)) {
+  if (!isValidEnvironment(linkName)) {
     ctx.body = {
       code: 1,
       msg: 'must a-z',
@@ -217,7 +220,7 @@ apiRouter.post('/link', koaBody(), (ctx) => {
 
 apiRouter.post('/unlink', koaBody(), (ctx) => {
   const { site, targetVersion, linkName } = ctx.request.body;
-  if (!/^[a-z]+$/.test(linkName)) {
+  if (!isValidEnvironment(linkName)) {
     ctx.body = {
       code: 1,
       msg: 'must a-z',
