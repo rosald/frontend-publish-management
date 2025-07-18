@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Spin, Button, Alert, Modal, Input, message } from 'antd';
 
-import { BASE } from './const.js';
+import { BASE } from '../../shared/utils.mjs';
 
 function App() {
   const queryClient = useQueryClient();

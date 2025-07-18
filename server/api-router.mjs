@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import Router from '@koa/router';
 import { koaBody } from 'koa-body';
 
-import { isValidEnvironment } from './utils.mjs';
+import { isValidEnvironment, isValidFileExtension } from '../shared/utils.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -16,7 +16,7 @@ const UPLOAD_TEMP = path.resolve(__dirname, '..', 'temp');
 
 fs.mkdir(UPLOAD_TEMP, (e) => {
   // do nothing, ensure the dir exists
-  console.log(UPLOAD_TEMP + ' already exists');
+  console.info(UPLOAD_TEMP + ' already exists');
 });
 
 const createWarningTxtFile = (targetPath) => {
@@ -164,6 +164,18 @@ apiRouter.post(
     }
 
     createWarningTxtFile(targetPath);
+
+    if (
+      !ctx.request.files.tarball ||
+      !isValidFileExtension(ctx.request.files.tarball.originalFilename)
+    ) {
+      ctx.body = {
+        code: 5,
+        msg: 'no tarball or not valid extension',
+      };
+      ctx.status = 400;
+      return;
+    }
 
     const uploadFilePath = ctx.request.files.tarball.filepath;
 

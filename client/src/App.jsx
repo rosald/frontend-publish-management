@@ -2,7 +2,7 @@ import { useState, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Select } from 'antd';
 
-import { BASE } from './const.js';
+import { BASE } from '../../shared/utils.mjs';
 
 const Db = lazy(() => import('./db.jsx'));
 const Upload = lazy(() => import('./upload.jsx'));

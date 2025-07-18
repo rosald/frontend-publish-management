@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Upload, Button, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 
-import { BASE, fileAccept, isValidFileExtension } from './const.js';
+import { BASE, isValidFileExtension, fileAccept } from '../../shared/utils.mjs';
 
 function App(props) {
   const { site } = props;
@@ -39,7 +39,7 @@ function App(props) {
 
       <div style={{ marginBlock: '16px' }}>
         <div>
-          <div>Upload Build Archive</div>
+          <div>Upload Build Archive (.tar .tar.gz .tar.xz)</div>
           <div style={{ marginBlock: '8px', color: '#666' }}>
             File structure: All files must be at the root of the archive (e.g., avoid having a
             "dist/" folder inside the archive).
@@ -53,7 +53,6 @@ function App(props) {
               setFileList([]);
             }}
             beforeUpload={(file) => {
-              console.log(file);
               if (!isValidFileExtension(file.name)) {
                 messageApi.error('Invalid format. Use .tar, .tar.gz or .tar.xz');
                 return false;

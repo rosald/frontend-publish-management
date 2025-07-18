@@ -4,7 +4,7 @@ import { Select, Table, Button, Tag, Modal, Drawer, Input, Tooltip, message } fr
 import { RocketOutlined, FileSearchOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
-import { BASE, isValidEnvironment } from './const.js';
+import { BASE, isValidEnvironment } from '../../shared/utils.mjs';
 
 function App(props) {
   const { site } = props;
