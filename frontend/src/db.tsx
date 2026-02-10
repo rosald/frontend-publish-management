@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Spin, Button, Alert, Modal, Input, message } from 'antd';
 
-import { BASE } from '../../shared/utils.mjs';
+import { BASE } from './const';
 
 function App() {
   const queryClient = useQueryClient();
@@ -33,7 +33,7 @@ function App() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: async (t) => {
+    mutationFn: async (t: string) => {
       const res = await fetch(`${BASE}/api/writesitedb`, {
         method: 'POST',
         body: JSON.stringify({ db: t }),
@@ -90,12 +90,12 @@ function App() {
           <div>
             <Alert
               style={{ marginBottom: '8px' }}
-              message="WARNING: Ensure valid JSON format - keys must be site names, values must be distribution paths."
+              title="WARNING: Ensure valid JSON format - keys must be site names, values must be distribution paths."
               type="warning"
             />
             <Alert
               style={{ marginBottom: '8px' }}
-              message="WARNING: Verify that all distribution paths exist on the server."
+              title="WARNING: Verify that all distribution paths exist on the server."
               type="warning"
             />
             <Input.TextArea

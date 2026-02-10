@@ -2,11 +2,11 @@ import { useState, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Select } from 'antd';
 
-import { BASE } from '../../shared/utils.mjs';
+import { BASE } from './const';
 
-const Db = lazy(() => import('./db.jsx'));
-const Upload = lazy(() => import('./upload.jsx'));
-const Site = lazy(() => import('./site.jsx'));
+const Db = lazy(() => import('./db'));
+const Upload = lazy(() => import('./upload'));
+const Site = lazy(() => import('./site'));
 
 function App() {
   const [site, setSite] = useState('');
@@ -25,7 +25,7 @@ function App() {
     },
   });
 
-  const selectSiteOptions = sitelist?.map((x) => {
+  const selectSiteOptions = sitelist?.map((x: string) => {
     return {
       label: x,
       value: x,

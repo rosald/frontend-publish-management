@@ -4,10 +4,9 @@ import { Select, Table, Button, Tag, Modal, Drawer, Input, Tooltip, message } fr
 import { RocketOutlined, FileSearchOutlined, QuestionCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 
-import { BASE, isValidEnvironment } from '../../shared/utils.mjs';
+import { BASE, isValidEnvironment } from './const';
 
-function App(props) {
-  const { site } = props;
+function App({ site }: { site: string }) {
   const queryClient = useQueryClient();
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -48,7 +47,7 @@ function App(props) {
   });
 
   const publishMutation = useMutation({
-    mutationFn: async (linkName) => {
+    mutationFn: async (linkName: string) => {
       await fetch(`${BASE}/api/link`, {
         method: 'POST',
         body: JSON.stringify({
@@ -69,7 +68,7 @@ function App(props) {
   });
 
   const unpublishMutation = useMutation({
-    mutationFn: async (linkName) => {
+    mutationFn: async (linkName: string) => {
       await fetch(`${BASE}/api/unlink`, {
         method: 'POST',
         body: JSON.stringify({
@@ -102,11 +101,11 @@ function App(props) {
     };
   });
 
-  const handlePublish = (linkName) => {
+  const handlePublish = (linkName: string) => {
     publishMutation.mutate(linkName);
   };
 
-  const handleUnpublish = (linkName) => {
+  const handleUnpublish = (linkName: string) => {
     unpublishMutation.mutate(linkName);
   };
 
@@ -243,7 +242,7 @@ function App(props) {
         <div>
           {inspectStatus === 'error' && <div>Error loading data</div>}
           {inspectStatus === 'success' &&
-            inspectData?.map((x) => {
+            inspectData?.map((x: string) => {
               return <div key={x}>{x}</div>;
             })}
         </div>
@@ -273,7 +272,7 @@ function App(props) {
             dataIndex: 'env',
             render: (col) => (
               <>
-                {col.map((x) => (
+                {col.map((x: string) => (
                   <Tag key={x} color={x === 'current' ? 'red' : 'green'}>
                     {x}
                   </Tag>

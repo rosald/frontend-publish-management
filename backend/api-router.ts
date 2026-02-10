@@ -1,25 +1,31 @@
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
-import { fileURLToPath } from 'node:url';
 
 import Router from '@koa/router';
 import { koaBody } from 'koa-body';
 
-import { isValidEnvironment, isValidFileExtension } from '../shared/utils.mjs';
+import { isValidEnvironment, isValidFileExtension } from './utils.ts';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = import.meta.dirname;
 
 const SITE_CONFIG = path.resolve(__dirname, '..', 'site.db.json');
 
+if (!fs.existsSync(SITE_CONFIG)) {
+  throw new Error(`site.db.json not found in ${__dirname}`);
+}
+
+const mkdirIfNotExist = (dir: string): void => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir);
+  }
+};
+
 const UPLOAD_TEMP = path.resolve(__dirname, '..', 'temp');
 
-fs.mkdir(UPLOAD_TEMP, (e) => {
-  // do nothing, ensure the dir exists
-  console.info(UPLOAD_TEMP + ' already exists');
-});
+mkdirIfNotExist(UPLOAD_TEMP);
 
-const createWarningTxtFile = (targetPath) => {
+const createWarningTxtFile = (targetPath: string): void => {
   const text =
     '!!! IMPORTANT WARNING !!!\n\n' +
     'This "dists" directory is AUTOMATICALLY MANAGED by the frontend-publish-management system.\n\n' +
@@ -29,24 +35,28 @@ const createWarningTxtFile = (targetPath) => {
     '■ Unauthorized modifications may cause SYSTEM FAILURES\n\n' +
     'Contact [Your Team Name/Email] for assistance.\n';
   const fileName = '00_WARNING_DO_NOT_MODIFY.txt';
-  fs.writeFile(path.resolve(targetPath, fileName), text, 'utf8', (e) => {
+  fs.writeFile(path.resolve(targetPath, fileName), text, 'utf8', () => {
     // do nothing
   });
 };
 
-const getConfig = () => {
+interface SiteConfig {
+  [site: string]: string;
+}
+
+const getConfig = (): SiteConfig => {
   const t = fs.readFileSync(SITE_CONFIG, 'utf8');
-  const config = JSON.parse(t);
+  const config: SiteConfig = JSON.parse(t);
   return config;
 };
 
-const writeConfig = (t) => {
+const writeConfig = (t: string): void => {
   fs.writeFileSync(SITE_CONFIG, t, 'utf8');
 };
 
-const getDirectoriesInSiteDistDir = (dir) => {
+const getDirectoriesInSiteDistDir = (dir: string): string[] => {
   const dirList = fs.readdirSync(dir);
-  const dirs = [];
+  const dirs: string[] = [];
   for (const d of dirList) {
     const fullPath = path.resolve(dir, d);
     const stat = fs.lstatSync(fullPath);
@@ -56,6 +66,17 @@ const getDirectoriesInSiteDistDir = (dir) => {
   }
   return dirs;
 };
+
+const writeEachPath = (config: SiteConfig): void => {
+  Object.keys(config).forEach((site) => {
+    const targetPath = config[site];
+    mkdirIfNotExist(targetPath);
+    createWarningTxtFile(targetPath);
+  });
+};
+
+const config = getConfig();
+writeEachPath(config);
 
 const apiRouter = new Router({ prefix: '/api' });
 
@@ -69,10 +90,11 @@ apiRouter.post('/inspectsitedb', koaBody(), (ctx) => {
 });
 
 apiRouter.post('/writesitedb', koaBody(), (ctx) => {
-  const { db } = ctx.request.body;
+  const { db } = ctx.request.body as { db: string };
   try {
-    JSON.parse(db);
+    const config: SiteConfig = JSON.parse(db);
     writeConfig(db);
+    writeEachPath(config);
     ctx.body = {
       code: 0,
       msg: 'success',
@@ -97,7 +119,7 @@ apiRouter.post('/listsite', koaBody(), (ctx) => {
 });
 
 apiRouter.post('/siteinfo', koaBody(), (ctx) => {
-  const { site } = ctx.request.body;
+  const { site } = ctx.request.body as { site: string };
   const config = getConfig();
   const targetPath = config[site];
 
@@ -116,8 +138,8 @@ apiRouter.post('/siteinfo', koaBody(), (ctx) => {
     if (a > b) return -1;
     return 0;
   });
-  const versions = {};
-  const links = {};
+  const versions: Record<string, Date> = {};
+  const links: Record<string, string> = {};
   for (const d of dirSorted) {
     const fullPath = path.resolve(targetPath, d);
     const stat = fs.lstatSync(fullPath);
@@ -150,7 +172,7 @@ apiRouter.post(
     },
   }),
   (ctx) => {
-    const { site } = ctx.request.body;
+    const { site } = ctx.request.body as { site: string };
     const config = getConfig();
     const targetPath = config[site];
 
@@ -165,10 +187,10 @@ apiRouter.post(
 
     createWarningTxtFile(targetPath);
 
-    if (
-      !ctx.request.files.tarball ||
-      !isValidFileExtension(ctx.request.files.tarball.originalFilename)
-    ) {
+    const files = (ctx.request as any).files;
+    const tarball = Array.isArray(files?.tarball) ? files.tarball[0] : files?.tarball;
+
+    if (!tarball || !isValidFileExtension(tarball.originalFilename)) {
       ctx.body = {
         code: 5,
         msg: 'no tarball or not valid extension',
@@ -177,7 +199,7 @@ apiRouter.post(
       return;
     }
 
-    const uploadFilePath = ctx.request.files.tarball.filepath;
+    const uploadFilePath = tarball.filepath;
 
     const currentDirs = getDirectoriesInSiteDistDir(targetPath);
     const currentMax = Math.max(...currentDirs.map((x) => Number(x)), 0);
@@ -191,11 +213,15 @@ apiRouter.post(
       code: 0,
       msg: 'success',
     };
-  }
+  },
 );
 
 apiRouter.post('/link', koaBody(), (ctx) => {
-  const { site, targetVersion, linkName } = ctx.request.body;
+  const { site, targetVersion, linkName } = (ctx.request as any).body as {
+    site: string;
+    targetVersion: string;
+    linkName: string;
+  };
   if (!isValidEnvironment(linkName)) {
     ctx.body = {
       code: 1,
@@ -221,8 +247,13 @@ apiRouter.post('/link', koaBody(), (ctx) => {
   const linkNamePath = path.resolve(targetPath, linkName);
   const linkNamePathTmp = path.resolve(targetPath, linkName + '.tmp');
 
-  spawnSync('ln', ['-snf', targetVersion, linkNamePathTmp]);
-  spawnSync('mv', ['-fT', linkNamePathTmp, linkNamePath]);
+  //spawnSync('ln', ['-snf', targetVersion, linkNamePathTmp]);
+  //spawnSync('mv', ['-fT', linkNamePathTmp, linkNamePath]);
+  // in Mac, there is no -T. Alpine also does not support -T
+  // so we just use ln -snf to create the link
+  // and it will override the existing link (may cause very little server downtime)
+
+  spawnSync('ln', ['-snf', targetVersion, linkNamePath]);
 
   ctx.body = {
     code: 0,
@@ -231,7 +262,11 @@ apiRouter.post('/link', koaBody(), (ctx) => {
 });
 
 apiRouter.post('/unlink', koaBody(), (ctx) => {
-  const { site, targetVersion, linkName } = ctx.request.body;
+  const { site, targetVersion, linkName } = (ctx.request as any).body as {
+    site: string;
+    targetVersion: string;
+    linkName: string;
+  };
   if (!isValidEnvironment(linkName)) {
     ctx.body = {
       code: 1,
@@ -262,7 +297,10 @@ apiRouter.post('/unlink', koaBody(), (ctx) => {
 });
 
 apiRouter.post('/inspect', koaBody(), (ctx) => {
-  const { site, version } = ctx.request.body;
+  const { site, version } = (ctx.request as any).body as {
+    site: string;
+    version: string;
+  };
   if (!/^\d{3}$/.test(version)) {
     ctx.body = {
       code: 1,
@@ -275,8 +313,8 @@ apiRouter.post('/inspect', koaBody(), (ctx) => {
 
   const versionPath = path.resolve(targetPath, version);
 
-  const list = [];
-  const result = [];
+  const list: string[] = [];
+  const result: string[] = [];
 
   const data = fs.readdirSync(versionPath);
   for (const d of data) {
@@ -288,7 +326,7 @@ apiRouter.post('/inspect', koaBody(), (ctx) => {
   }
 
   while (list.length > 0) {
-    const target = list.shift();
+    const target = list.shift()!;
 
     const data = fs.readdirSync(versionPath + '/' + target);
     for (const d of data) {

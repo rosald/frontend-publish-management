@@ -3,17 +3,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Upload, Button, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 
-import { BASE, isValidFileExtension, fileAccept } from '../../shared/utils.mjs';
+import { BASE, isValidFileExtension, fileAccept } from './const';
 
-function App(props) {
+function App(props: { site: string }) {
   const { site } = props;
   const queryClient = useQueryClient();
   const [messageApi, contextHolder] = message.useMessage();
 
-  const [fileList, setFileList] = useState([]);
+  const [fileList, setFileList] = useState<any[]>([]);
 
   const uploadMutation = useMutation({
-    mutationFn: async (formData) => {
+    mutationFn: async (formData: FormData) => {
       await fetch(`${BASE}/api/upload`, {
         method: 'POST',
         body: formData,

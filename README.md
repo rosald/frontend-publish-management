@@ -2,10 +2,10 @@
 
 A simple yet fully functional frontend deployment management system, with the following features:
 
-- Deploy frontend assets via web interface
-- Specify release versions
-- Access different versions using request headers
-- Zero-downtime version switching
+- Deploy frontend assets (`.tar` / `.tar.gz` / `.tar.xz`) via web interface
+- Auto-incrementing version directories (001, 002, ...)
+- Header-based version routing (`x-env-version`) for parallel testing
+- Symlink-based version switching
 
 ## Motivation
 
@@ -16,109 +16,157 @@ This solution addresses two key challenges:
 1. Manual deployment processes are cumbersome
 2. Testing parallel features is difficult when only one version is available (merging all feature branches mixes changes, whereas isolated feature testing is often preferable)
 
+## Prerequisites
+
+- Node.js >= 22.6 (uses [TypeScript type stripping](https://nodejs.org/en/learn/typescript/run-natively))
+- Nginx (or use the built-in `simulate-nginx` for local development)
+
+## Project Structure
+
+```
+.
+├── backend/          # Koa server (TypeScript, runs directly via node)
+├── frontend/         # Management UI (React 19 + antd 6 + Vite 7)
+├── conf/             # Configuration templates
+│   ├── nginx.conf    # Example Nginx config
+│   └── site.db.json  # Site config template
+├── simulate-nginx/   # Koa-based Nginx simulator for local dev
+└── site.db.json      # Active site config (gitignored, copy from conf/)
+```
+
 ## Usage Instructions
 
 ### 1. Initialize configuration
 
-Rename ./server/site.db.template.json to ./site.db.json
+Copy `conf/site.db.json` to the project root:
+
+```bash
+cp conf/site.db.json site.db.json
+```
 
 ### 2. Configure sites
 
-Edit site.db.json to define your deployment targets. This file contains site-name → site-path mappings. The path value should match where assets will be stored and must correspond to your Nginx configuration.
+Edit `site.db.json` to define your deployment targets. This file contains site-name to directory-path mappings. The path value should match where assets will be stored and must correspond to your Nginx configuration.
 
 ```json
 {
-  "sitea": "/home/ubuntu/sitea"
+  "sitea": "/Users/aaa/frontendassets/sitea",
+  "siteb": "/Users/aaa/frontendassets/siteb"
 }
 ```
 
+> The backend will automatically create these directories and place a warning file on startup.
+
 ### 3. Configure Nginx
 
-Add this map directive to the top of your http block:
+See `conf/nginx.conf` for a full example. The key parts:
 
-```conf
+Add a `map` directive to the `http` block:
+
+```nginx
 map $http_x_env_version $asset_env_version {
     default      "current";
     "~^[a-z]+$"  $http_x_env_version;
 }
 ```
 
-### 4. Set Nginx root path
+Set the `root` in each `server`/`location` block:
 
-In your server/location block, configure the root path:
-
-```
-root    /home/ubuntu/sitea/$asset_env_version;
+```nginx
+root /Users/aaa/frontendassets/sitea/$asset_env_version;
 ```
 
-> Ensure the directory (in this case /home/ubuntu/sitea) exists with correct permissions
+> If you don't have Nginx, use the `simulate-nginx` directory to run a Koa-based static file server that emulates the same header-routing behavior.
 
-### 5. Start services
+### 4. Start services
 
 ```bash
-sudo systemctl restart nginx  # Restart Nginx
-cd client && npm run build # Build frontend
-cd server && npm start # Start backend server
+# Install dependencies
+cd frontend && npm install
+cd ../backend && npm install
+
+# Build frontend
+cd ../frontend && npm run build
+
+# Start backend (PORT is required as env variable)
+cd ../backend && PORT=3000 npm start
 ```
 
-### 6. Access management UI
+For frontend development with hot reload:
+
+```bash
+cd frontend && npm run dev
+```
+
+> The Vite dev server proxies `/frontend-publish-management/api` requests to `http://localhost:3000`.
+
+### 5. Access management UI
 
 Visit http://localhost:3000/frontend-publish-management
 
-### 7. Deploy assets
+### 6. Deploy assets
 
-- Click "Select site to operate..."
-- Select and upload a .tar file
-- Click "Publish/Unpublish", then click "Set as Default Version"
+Prepare your frontend assets tarball:
 
-Note : File structure: All files must be at the root of the archive (e.g., avoid having a "dist/" folder inside the archive).
+```bash
+tar -cvf a.tar -C ./dist .
+# or
+tar -czvf a.tar.gz -C ./dist .
+```
 
-### 8. Test deployments
+- Select a site from the dropdown
+- Upload a `.tar` / `.tar.gz` / `.tar.xz` file
+- Use "Publish/Unpublish" to create/remove symlinks (e.g., link `current` → `003`)
 
-Access your site normally to see the published version
+> All files must be at the root of the archive. Avoid having a nested folder (e.g., `dist/`) inside the archive.
 
-### 9. Environment testing (optional)
+### 7. Environment testing (optional)
 
 - Upload multiple versions
-- Enter an environment name (e.g., featurea)
-- Visit site with header: x-env-version: featurea
+- Create a named symlink (e.g., `featurea` → `002`)
+- Visit the site with header `x-env-version: featurea`
 - Use browser extensions like ModHeader for header injection
 
-## Architecture Overview
+## Architecture
 
-### Core Components
+### Backend (`backend/`)
 
-#### Backend (Koa Server)
+- **Runtime**: Node.js with native TypeScript type stripping (no build step)
+- **Framework**: Koa 3 + @koa/router
+- **Config**: `site.db.json` at project root (site-name → directory-path mapping)
+- **APIs**: upload tarball, create/remove symlinks, list versions, inspect files
+- **Static serving**: serves `frontend/dist` under the `/frontend-publish-management` prefix
 
-- Receives and extracts .tar archives
-- Manages symlinks for version switching
-- Uses site.db.json for site configuration:
+### Frontend (`frontend/`)
 
-#### Frontend (React + Vite)
+- **Stack**: React 19 + antd 6 + TanStack React Query + Vite 7
+- **Features**: site selector, tarball upload, version list, symlink management, config editor
 
-- Provides UI for version management
-- Visualizes deployment status and history
+### Nginx (or `simulate-nginx/`)
 
-#### Nginx
-
-- Uses map to convert headers to directory paths
-- Serves assets from version-specific directories
+- Maps the `x-env-version` request header to a subdirectory name
+- Falls back to `current` when the header is absent or invalid
+- Serves static assets from the resolved version directory
 
 ### Key Mechanism
 
-The system manages directories where Nginx serves content, enabling:
+```
+/Users/aaa/frontendassets/sitea/
+├── 001/              # version 001 (uploaded assets)
+├── 002/              # version 002
+├── 003/              # version 003
+├── current -> 003    # symlink: default version
+└── featurea -> 002   # symlink: feature branch version
+```
 
-1. Atomic version switches via symlink updates
-2. Header-based version routing (x-env-version)
-3. Parallel version testing without DNS changes
+- Uploading a tarball extracts it into the next auto-incremented directory
+- Creating a symlink (e.g., `current` → `003`) switches the served version
+- Nginx resolves `x-env-version: featurea` to serve from `featurea/` → `002/`
+- Without the header, Nginx serves from `current/` → `003/`
 
 ## Limitations
 
-The following features are not implemented:
-
-- Authentication/authorization
-- Error tracking and reporting
-- Operation auditing
-- Database persistence
-- Deployment locking
-- Auto-restart (PM2 recommended)
+- No authentication/authorization
+- No error tracking or operation auditing
+- No deployment locking (concurrent uploads may conflict)
+- No auto-restart (use PM2 or systemd in production)

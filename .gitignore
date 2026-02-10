@@ -15,6 +15,7 @@ dist-ssr
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+.qoder
 .idea
 .DS_Store
 *.suo
@@ -23,6 +24,6 @@ dist-ssr
 *.sln
 *.sw?
 
-site.db.json
-upload_temp/*
 temp/*
+site.db.json
+!conf/*

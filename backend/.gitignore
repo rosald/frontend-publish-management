@@ -23,6 +23,4 @@ dist-ssr
 *.sln
 *.sw?
 
-site.db.json
-upload_temp/*
 temp/*
