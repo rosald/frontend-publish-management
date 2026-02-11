@@ -27,35 +27,49 @@ This solution addresses two key challenges:
 .
 ├── backend/          # Koa server (TypeScript, runs directly via node)
 ├── frontend/         # Management UI (React 19 + antd 6 + Vite 7)
-├── conf/             # Configuration templates
+├── conf/             # Configuration templates & Dockerfile
+│   ├── Dockerfile    # Multi-stage Docker build
 │   ├── nginx.conf    # Example Nginx config
 │   └── site.db.json  # Site config template
-├── simulate-nginx/   # Koa-based Nginx simulator for local dev
-└── site.db.json      # Active site config (gitignored, copy from conf/)
+└── simulate-nginx/   # Koa-based Nginx simulator for local dev
+```
+
+The backend reads from an external data directory (set via `DIR` env variable):
+
+```
+$DIR/
+├── site.db.json      # Site configuration (site-key → display-name)
+├── site_dist/        # Versioned assets per site
+│   └── <site-key>/   # e.g. sitea/001, sitea/002, sitea/current -> 002
+└── upload_temp/      # Temporary upload storage
 ```
 
 ## Usage Instructions
 
-### 1. Initialize configuration
+### 1. Initialize data directory
 
-Copy `conf/site.db.json` to the project root:
+Create the data directory and copy the config template:
 
 ```bash
-cp conf/site.db.json site.db.json
+# Example: DIR=/Users/aaa/frontendmanagement
+mkdir -p $DIR
+cp conf/site.db.json $DIR/site.db.json
 ```
+
+> `site_dist/` and `upload_temp/` subdirectories are created automatically by the backend on startup.
 
 ### 2. Configure sites
 
-Edit `site.db.json` to define your deployment targets. This file contains site-name to directory-path mappings. The path value should match where assets will be stored and must correspond to your Nginx configuration.
+Edit `$DIR/site.db.json` to define your deployment targets. Each key is a site identifier (lowercase letters only, used as the directory name under `$DIR/site_dist/`), and the value is a display name.
 
 ```json
 {
-  "sitea": "/Users/aaa/frontendassets/sitea",
-  "siteb": "/Users/aaa/frontendassets/siteb"
+  "sitea": "Site A",
+  "siteb": "Site B"
 }
 ```
 
-> The backend will automatically create these directories and place a warning file on startup.
+The Nginx `root` path should point to `$DIR/site_dist/<site-key>/$asset_env_version`.
 
 ### 3. Configure Nginx
 
@@ -73,7 +87,7 @@ map $http_x_env_version $asset_env_version {
 Set the `root` in each `server`/`location` block:
 
 ```nginx
-root /Users/aaa/frontendassets/sitea/$asset_env_version;
+root /path/to/data/site_dist/sitea/$asset_env_version;
 ```
 
 > If you don't have Nginx, use the `simulate-nginx` directory to run a Koa-based static file server that emulates the same header-routing behavior.
@@ -88,8 +102,8 @@ cd ../backend && npm install
 # Build frontend
 cd ../frontend && npm run build
 
-# Start backend (PORT is required as env variable)
-cd ../backend && PORT=3000 npm start
+# Start backend (DIR and PORT are required as env variables)
+cd ../backend && DIR=/path/to/data PORT=3000 npm start
 ```
 
 For frontend development with hot reload:
@@ -133,7 +147,7 @@ tar -czvf a.tar.gz -C ./dist .
 
 - **Runtime**: Node.js with native TypeScript type stripping (no build step)
 - **Framework**: Koa 3 + @koa/router
-- **Config**: `site.db.json` at project root (site-name → directory-path mapping)
+- **Config**: `$DIR/site.db.json` (site-key → display-name; asset paths derived as `$DIR/site_dist/<key>`)
 - **APIs**: upload tarball, create/remove symlinks, list versions, inspect files
 - **Static serving**: serves `frontend/dist` under the `/frontend-publish-management` prefix
 
@@ -151,7 +165,7 @@ tar -czvf a.tar.gz -C ./dist .
 ### Key Mechanism
 
 ```
-/Users/aaa/frontendassets/sitea/
+$DIR/site_dist/sitea/
 ├── 001/              # version 001 (uploaded assets)
 ├── 002/              # version 002
 ├── 003/              # version 003

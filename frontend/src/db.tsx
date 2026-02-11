@@ -79,6 +79,22 @@ function App() {
         open={!!isOpen}
         onCancel={closeModal}
         onOk={() => {
+          let obj: Record<string, string>;
+          try {
+            obj = JSON.parse(inputValue);
+          } catch (error: any) {
+            messageApi.error(`Invalid JSON format: ${error.message}`);
+            return;
+          }
+          const siteKeys = Object.keys(obj);
+          if (siteKeys.length !== new Set(siteKeys).size) {
+            messageApi.error('Site keys must be unique.');
+            return;
+          }
+          if (!siteKeys.every((x) => /^[a-z]+$/.test(x))) {
+            messageApi.error('Site keys must be in [a-z]+ format.');
+            return;
+          }
           updateMutation.mutate(inputValue);
         }}
         okText="Update Site Db (Be Extremely Cautious)"
@@ -90,12 +106,12 @@ function App() {
           <div>
             <Alert
               style={{ marginBottom: '8px' }}
-              title="WARNING: Ensure valid JSON format - keys must be site names, values must be distribution paths."
+              title="WARNING: Ensure valid JSON format - keys must be site keys, values must be site names."
               type="warning"
             />
             <Alert
               style={{ marginBottom: '8px' }}
-              title="WARNING: Verify that all distribution paths exist on the server."
+              title="WARNING: Site key should be unique (it will be used as path of distribution), and in [a-z]+ format."
               type="warning"
             />
             <Input.TextArea

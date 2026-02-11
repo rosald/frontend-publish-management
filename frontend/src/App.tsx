@@ -25,10 +25,10 @@ function App() {
     },
   });
 
-  const selectSiteOptions = sitelist?.map((x: string) => {
+  const selectSiteOptions = Object.entries<string>(sitelist || {}).map((x) => {
     return {
-      label: x,
-      value: x,
+      label: x[1] + ' ' + '(' + x[0] + ')',
+      value: x[0],
     };
   });
 

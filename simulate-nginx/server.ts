@@ -13,8 +13,9 @@ if (!PORT) {
 const app = new Koa();
 
 // an example of serving assets like nginx do. use this if you do not have nginx installed
+// adjust the path to match your DIR/site_dist/<site-key>
 app.use(
-  koaStatic('/Users/aaa/frontendassets/sitea', undefined, {
+  koaStatic('/path/to/data/site_dist/sitea', undefined, {
     headerKey: 'x-env-version',
     headerValueReg: /^[a-z]+$/,
     prefix: '/someprefix',

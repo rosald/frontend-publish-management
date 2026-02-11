@@ -179,7 +179,8 @@ function App({ site }: { site: string }) {
             />
 
             <Button
-              type="primary"
+              color="green"
+              variant="solid"
               onClick={() => {
                 if (!isValidEnvironment(inputValue)) {
                   messageApi.error('Environment name must be lowercase letters only');
@@ -271,13 +272,13 @@ function App({ site }: { site: string }) {
             ),
             dataIndex: 'env',
             render: (col) => (
-              <>
+              <div style={{ display: 'flex', gap: '4px' }}>
                 {col.map((x: string) => (
-                  <Tag key={x} color={x === 'current' ? 'red' : 'green'}>
+                  <Tag key={x} color={x === 'current' ? 'blue' : 'green'}>
                     {x}
                   </Tag>
                 ))}
-              </>
+              </div>
             ),
           },
           {

@@ -7,12 +7,15 @@ import { koaBody } from 'koa-body';
 
 import { isValidEnvironment, isValidFileExtension } from './utils.ts';
 
-const __dirname = import.meta.dirname;
+const DIR = process.env.DIR;
+if (!DIR) {
+  throw new Error('DIR is not set');
+}
 
-const SITE_CONFIG = path.resolve(__dirname, '..', 'site.db.json');
+const SITE_CONFIG = path.resolve(DIR, 'site.db.json');
 
 if (!fs.existsSync(SITE_CONFIG)) {
-  throw new Error(`site.db.json not found in ${__dirname}`);
+  throw new Error(`site.db.json not found in ${DIR}`);
 }
 
 const mkdirIfNotExist = (dir: string): void => {
@@ -21,9 +24,11 @@ const mkdirIfNotExist = (dir: string): void => {
   }
 };
 
-const UPLOAD_TEMP = path.resolve(__dirname, '..', 'temp');
-
+const UPLOAD_TEMP = path.resolve(DIR, 'upload_temp');
 mkdirIfNotExist(UPLOAD_TEMP);
+
+const SITE_DIST = path.resolve(DIR, 'site_dist');
+mkdirIfNotExist(SITE_DIST);
 
 const createWarningTxtFile = (targetPath: string): void => {
   const text =
@@ -69,7 +74,7 @@ const getDirectoriesInSiteDistDir = (dir: string): string[] => {
 
 const writeEachPath = (config: SiteConfig): void => {
   Object.keys(config).forEach((site) => {
-    const targetPath = config[site];
+    const targetPath = path.resolve(SITE_DIST, site);
     mkdirIfNotExist(targetPath);
     createWarningTxtFile(targetPath);
   });
@@ -93,6 +98,23 @@ apiRouter.post('/writesitedb', koaBody(), (ctx) => {
   const { db } = ctx.request.body as { db: string };
   try {
     const config: SiteConfig = JSON.parse(db);
+    const siteKeys = Object.keys(config);
+    if (siteKeys.length !== new Set(siteKeys).size) {
+      ctx.status = 400;
+      ctx.body = {
+        code: 1,
+        msg: 'site keys must be unique',
+      };
+      return;
+    }
+    if (!siteKeys.every((x) => /^[a-z]+$/.test(x))) {
+      ctx.status = 400;
+      ctx.body = {
+        code: 1,
+        msg: 'site keys must be in [a-z]+ format',
+      };
+      return;
+    }
     writeConfig(db);
     writeEachPath(config);
     ctx.body = {
@@ -114,16 +136,16 @@ apiRouter.post('/listsite', koaBody(), (ctx) => {
   ctx.body = {
     code: 0,
     msg: 'success',
-    data: Object.keys(config),
+    data: config,
   };
 });
 
 apiRouter.post('/siteinfo', koaBody(), (ctx) => {
   const { site } = ctx.request.body as { site: string };
   const config = getConfig();
-  const targetPath = config[site];
+  const targetPath = path.resolve(SITE_DIST, site);
 
-  if (!targetPath) {
+  if (!targetPath || !config[site] || !fs.existsSync(targetPath)) {
     ctx.body = {
       code: 1,
       msg: 'site not found',
@@ -174,9 +196,9 @@ apiRouter.post(
   (ctx) => {
     const { site } = ctx.request.body as { site: string };
     const config = getConfig();
-    const targetPath = config[site];
+    const targetPath = path.resolve(SITE_DIST, site);
 
-    if (!targetPath) {
+    if (!targetPath || !config[site] || !fs.existsSync(targetPath)) {
       ctx.body = {
         code: 1,
         msg: 'site not found',
@@ -231,9 +253,9 @@ apiRouter.post('/link', koaBody(), (ctx) => {
     return;
   }
   const config = getConfig();
-  const targetPath = config[site];
+  const targetPath = path.resolve(SITE_DIST, site);
 
-  if (!targetPath) {
+  if (!targetPath || !config[site] || !fs.existsSync(targetPath)) {
     ctx.body = {
       code: 1,
       msg: 'site not found',
@@ -275,9 +297,9 @@ apiRouter.post('/unlink', koaBody(), (ctx) => {
     return;
   }
   const config = getConfig();
-  const targetPath = config[site];
+  const targetPath = path.resolve(SITE_DIST, site);
 
-  if (!targetPath) {
+  if (!targetPath || !config[site] || !fs.existsSync(targetPath)) {
     ctx.body = {
       code: 1,
       msg: 'site not found',
@@ -309,7 +331,16 @@ apiRouter.post('/inspect', koaBody(), (ctx) => {
     return;
   }
   const config = getConfig();
-  const targetPath = config[site];
+  const targetPath = path.resolve(SITE_DIST, site);
+
+  if (!targetPath || !config[site] || !fs.existsSync(targetPath)) {
+    ctx.body = {
+      code: 1,
+      msg: 'site not found',
+    };
+    ctx.status = 400;
+    return;
+  }
 
   const versionPath = path.resolve(targetPath, version);
 
